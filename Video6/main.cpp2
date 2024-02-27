@@ -1,0 +1,167 @@
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_image.h"
+#include "SDL2/SDL_ttf.h"
+#include "fmt/format.h"
+
+Game: type = {
+    title: const std::string = "Moving Text";
+    width: i32 = 800;
+    height: i32 = 600;
+    font_size: i32 = 80;
+    font_color: SDL_Color = (255, 255, 255, 255);
+
+    text_rect: SDL_Rect = (0, 0, 0, 0);
+    text_vel: i32 = 3;
+    text_xvel: i32 = text_vel;
+    text_yvel: i32 = text_vel;
+
+    event: SDL_Event = 0;
+
+    gen: std::mt19937 = std::random_device()();
+    rand_color: std::uniform_int_distribution<Uint8> = (0, 255);
+
+    window: std::shared_ptr<SDL_Window> = (nullptr, SDL_DestroyWindow);
+    renderer: std::shared_ptr<SDL_Renderer> = (nullptr, SDL_DestroyRenderer);
+    background: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
+    font: std::unique_ptr<TTF_Font, decltype(TTF_CloseFont&)> = (nullptr, TTF_CloseFont);
+    text_surf: std::unique_ptr<SDL_Surface, decltype(SDL_FreeSurface&)> = (nullptr, SDL_FreeSurface);
+    text: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
+
+    operator=: (out this) = {
+        initialize();
+        load_media();
+    }
+
+    initialize: (inout this) = {
+        window = (SDL_CreateWindow(title.c_str(),
+            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
+            SDL_WINDOW_SHOWN), SDL_DestroyWindow);
+        if (!window) {
+            error: = fmt::format("Error creating Window: {}", SDL_GetError());
+            throw(std::runtime_error(error));
+        }
+
+        renderer = (SDL_CreateRenderer(window.get(),
+            -1, SDL_RENDERER_ACCELERATED), SDL_DestroyRenderer);
+        if (!renderer) {
+            error: = fmt::format("Error creating Renderer: {}", SDL_GetError());
+            throw(std::runtime_error(error));
+        }
+    }
+
+    load_media: (inout this) = {
+        background = (IMG_LoadTexture(renderer.get(), "images/background.png"), SDL_DestroyTexture);
+        if (!background) {
+            error: = fmt::format("Error loading Texture: {}", IMG_GetError());
+            throw(std::runtime_error(error));
+        }
+
+        font = (TTF_OpenFont("fonts/freesansbold.ttf", font_size), TTF_CloseFont);
+        if (!font) {
+            error: = fmt::format("Error creating Font: {}", TTF_GetError());
+            throw(std::runtime_error(error));
+        }
+
+        text_surf = (TTF_RenderText_Blended(font.get(), "SDL", font_color), SDL_FreeSurface);
+        if (!text_surf) {
+            error: = fmt::format("Error loading text Surface: {}", TTF_GetError());
+            throw(std::runtime_error(error));
+        }
+
+        text_rect.w = text_surf*.w;
+        text_rect.h = text_surf*.h;
+
+        text = (SDL_CreateTextureFromSurface(renderer.get(), text_surf.get()), SDL_DestroyTexture);
+        if (!text) {
+            error: = fmt::format("Error creating Texture from Surface: {}", SDL_GetError());
+            throw(std::runtime_error(error));
+        }
+    }
+
+    bye: (this) = {
+        std::cout << "Good Bye from Game." << std::endl;
+    }
+
+    text_update: (inout this) = {
+        text_rect.x += text_xvel;
+        text_rect.y += text_yvel;
+        if (text_rect.x + text_rect.w > width) {
+            text_xvel = -3;
+        }
+        if (text_rect.x < 0) {
+            text_xvel = 3;
+        }
+        if (text_rect.y + text_rect.h > height) {
+            text_yvel = -3;
+        }
+        if (text_rect.y < 0) {
+            text_yvel = 3;
+        }
+    }
+
+    run: (inout this) = {
+        while true {
+            while SDL_PollEvent(event&) {
+                if (event.type == SDL_QUIT) {
+                    return;
+                }
+                if (event.type == SDL_KEYDOWN) {
+                    if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                        return;
+                    }
+                    if (event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
+                        SDL_SetRenderDrawColor(renderer.get(), rand_color(gen),
+                            rand_color(gen), rand_color(gen), 255);
+                    }
+                }
+            }
+
+            text_update();
+
+            SDL_RenderClear(renderer.get());
+
+            SDL_RenderCopy(renderer.get(), background.get(), nullptr, nullptr);
+            SDL_RenderCopy(renderer.get(), text.get(), nullptr, text_rect&);
+
+            SDL_RenderPresent(renderer.get());
+
+            SDL_Delay(16);
+        }
+    }
+}
+
+initialize_sdl: () = {
+    img_flags: i32 = IMG_INIT_PNG;
+
+    if (SDL_Init(SDL_INIT_EVERYTHING)) {
+        error: = fmt::format("Error initializing SDL: {}", SDL_GetError());
+        throw(std::runtime_error(error));
+    }
+
+    if ((IMG_Init(img_flags) & img_flags) != img_flags) {
+        error: = fmt::format("Error initializing SDL_image: {}", IMG_GetError());
+        throw(std::runtime_error(error));
+    }
+
+    if(TTF_Init()) {
+        error: = fmt::format("Error initializing SDL_ttf: {}", TTF_GetError());
+        throw(std::runtime_error(error));
+    }
+}
+
+close_sdl: () = {
+    TTF_Quit();
+    IMG_Quit();
+    SDL_Quit();
+    std::cout << "All Shut Down." << std::endl;
+}
+
+main: () = {
+    initialize_sdl();
+    {
+        game: Game = ();
+        game.run();
+        game.bye();
+    }
+    close_sdl();
+}

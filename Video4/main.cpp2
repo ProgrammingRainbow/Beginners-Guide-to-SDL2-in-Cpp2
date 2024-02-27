@@ -1,0 +1,109 @@
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_image.h"
+#include "fmt/format.h"
+
+Game: type = {
+    title: const std::string = "Colors";
+    width: i32 = 800;
+    height: i32 = 600;
+
+    event: SDL_Event = 0;
+
+    gen: std::mt19937 = std::random_device()();
+    rand_color: std::uniform_int_distribution<Uint8> = (0, 255);
+
+    window: std::shared_ptr<SDL_Window> = (nullptr, SDL_DestroyWindow);
+    renderer: std::shared_ptr<SDL_Renderer> = (nullptr, SDL_DestroyRenderer);
+    background: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
+
+    operator=: (out this) = {
+        initialize();
+        load_media();
+    }
+
+    initialize: (inout this) = {
+        window = (SDL_CreateWindow(title.c_str(),
+            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
+            SDL_WINDOW_SHOWN), SDL_DestroyWindow);
+        if (!window) {
+            error: = fmt::format("Error creating Window: {}", SDL_GetError());
+            throw(std::runtime_error(error));
+        }
+
+        renderer = (SDL_CreateRenderer(window.get(),
+            -1, SDL_RENDERER_ACCELERATED), SDL_DestroyRenderer);
+        if (!renderer) {
+            error: = fmt::format("Error creating Renderer: {}", SDL_GetError());
+            throw(std::runtime_error(error));
+        }
+    }
+
+    load_media: (inout this) = {
+        background = (IMG_LoadTexture(renderer.get(), "images/background.png"), SDL_DestroyTexture);
+        if (!background) {
+            error: = fmt::format("Error loading Texture: {}", IMG_GetError());
+            throw(std::runtime_error(error));
+        }
+    }
+
+    bye: (this) = {
+        std::cout << "Good Bye from Game." << std::endl;
+    }
+
+    run: (inout this) = {
+        while true {
+            while SDL_PollEvent(event&) {
+                if (event.type == SDL_QUIT) {
+                    return;
+                }
+                if (event.type == SDL_KEYDOWN) {
+                    if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                        return;
+                    }
+                    if (event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
+                        SDL_SetRenderDrawColor(renderer.get(), rand_color(gen),
+                            rand_color(gen), rand_color(gen), 255);
+                    }
+                }
+            }
+
+            SDL_RenderClear(renderer.get());
+
+            SDL_RenderCopy(renderer.get(), background.get(), nullptr, nullptr);
+
+            SDL_RenderPresent(renderer.get());
+
+            SDL_Delay(16);
+        }
+    }
+}
+
+initialize_sdl: () = {
+    img_flags: i32 = IMG_INIT_PNG;
+
+    if (SDL_Init(SDL_INIT_EVERYTHING)) {
+        error: = fmt::format("Error initializing SDL: {}", SDL_GetError());
+        throw(std::runtime_error(error));
+    }
+
+    if ((IMG_Init(img_flags) & img_flags) != img_flags) {
+        error: = fmt::format("Error initializing SDL_image: {}", IMG_GetError());
+        throw(std::runtime_error(error));
+    }
+}
+
+close_sdl: () = {
+    IMG_Quit();
+    SDL_Quit();
+    std::cout << "All Shut Down." << std::endl;
+}
+
+main: () = {
+    initialize_sdl();
+    {
+        game: Game = ();
+        game.run();
+        game.bye();
+    }
+    close_sdl();
+}
