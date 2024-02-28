@@ -1,66 +1,27 @@
-#include "SDL2/SDL.h"
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Open Window";
-    width: i32 = 800;
-    height: i32 = 600;
-
-    window: std::unique_ptr<SDL_Window, decltype(SDL_DestroyWindow&)> = (nullptr, SDL_DestroyWindow);
-    renderer: std::unique_ptr<SDL_Renderer, decltype(SDL_DestroyRenderer&)> = (nullptr, SDL_DestroyRenderer);
+    msg: const std::string;
+    num: i32;
 
     operator=: (out this) = {
-        initialize();
+        msg = "Hello from Cpp2";
+        num = 5;
     }
 
-    initialize: (inout this) = {
-        window.reset(SDL_CreateWindow(title.c_str(),
-            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
-            SDL_WINDOW_SHOWN));
-        if (!window) {
-            error: = fmt::format("Error creating Window: {}", SDL_GetError());
-            throw(std::runtime_error(error));
-        }
-
-        renderer.reset(SDL_CreateRenderer(window.get(),
-            -1, SDL_RENDERER_ACCELERATED));
-        if (!renderer) {
-            error: = fmt::format("Error creating Renderer: {}", SDL_GetError());
-            throw(std::runtime_error(error));
-        }
+    speak: (this) = {
+        std::cout << msg << std::endl;
     }
 
-    bye: (this) = {
-        std::cout << "Good Bye from Game." << std::endl;
+    inc: (inout this) = {
+        std::cout << num << std::endl;
+        num++;
+        std::cout << num << std::endl;
     }
-
-    run: (inout this) = {
-        SDL_RenderClear(renderer.get());
-
-        SDL_RenderPresent(renderer.get());
-
-        SDL_Delay(5000);
-    }
-}
-
-initialize_sdl: () = {
-    if (SDL_Init(SDL_INIT_EVERYTHING)) {
-        error: = fmt::format("Error initializing SDL: {}", SDL_GetError());
-        throw(std::runtime_error(error));
-    }
-}
-
-close_sdl: () = {
-    SDL_Quit();
-    std::cout << "All Shut Down." << std::endl;
 }
 
 main: () = {
-    initialize_sdl();
-    {
-        game: Game = ();
-        game.run();
-        game.bye();
-    }
-    close_sdl();
+    game: Game = ();
+    game.inc();
+    game.speak();
 }

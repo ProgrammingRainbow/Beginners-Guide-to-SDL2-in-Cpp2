@@ -4,7 +4,7 @@
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Player Sprite";
+    title: const std::string = "Moving Text";
     width: i32 = 800;
     height: i32 = 600;
     font_size: i32 = 80;
@@ -14,11 +14,8 @@ Game: type = {
     text_vel: i32 = 3;
     text_xvel: i32 = text_vel;
     text_yvel: i32 = text_vel;
-    sprite_rect: SDL_Rect = (400, 0, 0, 0);
-    sprite_vel: i32 = 5;
 
     event: SDL_Event = 0;
-    keystate: * const Uint8 = SDL_GetKeyboardState(nullptr);
 
     gen: std::mt19937 = std::random_device()();
     rand_color: std::uniform_int_distribution<Uint8> = (0, 255);
@@ -29,7 +26,6 @@ Game: type = {
     font: std::unique_ptr<TTF_Font, decltype(TTF_CloseFont&)> = (nullptr, TTF_CloseFont);
     text_surf: std::unique_ptr<SDL_Surface, decltype(SDL_FreeSurface&)> = (nullptr, SDL_FreeSurface);
     text: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
-    sprite: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
 
     operator=: (out this) = {
         initialize();
@@ -80,17 +76,6 @@ Game: type = {
             error: = fmt::format("Error creating Texture from Surface: {}", SDL_GetError());
             throw(std::runtime_error(error));
         }
-
-        sprite.reset(IMG_LoadTexture(renderer.get(), "images/Cpp2-logo.png"));
-        if (!sprite) {
-            error: = fmt::format("Error loading Texture: {}", IMG_GetError());
-            throw(std::runtime_error(error));
-        }
-
-        if (SDL_QueryTexture(sprite.get(), nullptr, nullptr, sprite_rect.w&, sprite_rect.h&)) {
-            error: = fmt::format("Error querying Texture: {}", IMG_GetError());
-            throw(std::runtime_error(error));
-        }
     }
 
     bye: (this) = {
@@ -114,21 +99,6 @@ Game: type = {
         }
     }
 
-    sprite_update: (inout this) = {
-        if (keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A]) {
-            sprite_rect.x -= sprite_vel;
-        }
-        if (keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D]) {
-            sprite_rect.x += sprite_vel;
-        }
-        if (keystate[SDL_SCANCODE_UP] || keystate[SDL_SCANCODE_W]) {
-            sprite_rect.y -= sprite_vel;
-        }
-        if (keystate[SDL_SCANCODE_DOWN] || keystate[SDL_SCANCODE_S]) {
-            sprite_rect.y += sprite_vel;
-        }
-    }
-
     run: (inout this) = {
         while true {
             while SDL_PollEvent(event&) {
@@ -147,13 +117,11 @@ Game: type = {
             }
 
             text_update();
-            sprite_update();
 
             SDL_RenderClear(renderer.get());
 
             SDL_RenderCopy(renderer.get(), background.get(), nullptr, nullptr);
             SDL_RenderCopy(renderer.get(), text.get(), nullptr, text_rect&);
-            SDL_RenderCopy(renderer.get(), sprite.get(), nullptr, sprite_rect&);
 
             SDL_RenderPresent(renderer.get());
 

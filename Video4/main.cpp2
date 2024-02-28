@@ -3,14 +3,11 @@
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Colors";
+    title: const std::string = "Background";
     width: i32 = 800;
     height: i32 = 600;
 
     event: SDL_Event = 0;
-
-    gen: std::mt19937 = std::random_device()();
-    rand_color: std::uniform_int_distribution<Uint8> = (0, 255);
 
     window: std::unique_ptr<SDL_Window, decltype(SDL_DestroyWindow&)> = (nullptr, SDL_DestroyWindow);
     renderer: std::unique_ptr<SDL_Renderer, decltype(SDL_DestroyRenderer&)> = (nullptr, SDL_DestroyRenderer);
@@ -59,10 +56,6 @@ Game: type = {
                 if (event.type == SDL_KEYDOWN) {
                     if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
                         return;
-                    }
-                    if (event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
-                        SDL_SetRenderDrawColor(renderer.get(), rand_color(gen),
-                            rand_color(gen), rand_color(gen), 255);
                     }
                 }
             }

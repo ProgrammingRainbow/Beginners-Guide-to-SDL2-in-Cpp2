@@ -2,11 +2,9 @@
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Close Window";
+    title: const std::string = "Open Window";
     width: i32 = 800;
     height: i32 = 600;
-
-    event: SDL_Event = 0;
 
     window: std::unique_ptr<SDL_Window, decltype(SDL_DestroyWindow&)> = (nullptr, SDL_DestroyWindow);
     renderer: std::unique_ptr<SDL_Renderer, decltype(SDL_DestroyRenderer&)> = (nullptr, SDL_DestroyRenderer);
@@ -37,24 +35,11 @@ Game: type = {
     }
 
     run: (inout this) = {
-        while true {
-            while SDL_PollEvent(event&) {
-                if (event.type == SDL_QUIT) {
-                    return;
-                }
-                if (event.type == SDL_KEYDOWN) {
-                    if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
-                        return;
-                    }
-                }
-            }
+        SDL_RenderClear(renderer.get());
 
-            SDL_RenderClear(renderer.get());
+        SDL_RenderPresent(renderer.get());
 
-            SDL_RenderPresent(renderer.get());
-
-            SDL_Delay(16);
-        }
+        SDL_Delay(5000);
     }
 }
 

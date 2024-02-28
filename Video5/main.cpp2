@@ -1,16 +1,11 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
-#include "SDL2/SDL_ttf.h"
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Create Text";
+    title: const std::string = "Colors";
     width: i32 = 800;
     height: i32 = 600;
-    font_size: i32 = 80;
-    font_color: SDL_Color = (255, 255, 255, 255);
-
-    text_rect: SDL_Rect = (0, 0, 0, 0);
 
     event: SDL_Event = 0;
 
@@ -20,9 +15,6 @@ Game: type = {
     window: std::unique_ptr<SDL_Window, decltype(SDL_DestroyWindow&)> = (nullptr, SDL_DestroyWindow);
     renderer: std::unique_ptr<SDL_Renderer, decltype(SDL_DestroyRenderer&)> = (nullptr, SDL_DestroyRenderer);
     background: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
-    font: std::unique_ptr<TTF_Font, decltype(TTF_CloseFont&)> = (nullptr, TTF_CloseFont);
-    text_surf: std::unique_ptr<SDL_Surface, decltype(SDL_FreeSurface&)> = (nullptr, SDL_FreeSurface);
-    text: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
 
     operator=: (out this) = {
         initialize();
@@ -52,27 +44,6 @@ Game: type = {
             error: = fmt::format("Error loading Texture: {}", IMG_GetError());
             throw(std::runtime_error(error));
         }
-
-        font.reset(TTF_OpenFont("fonts/freesansbold.ttf", font_size));
-        if (!font) {
-            error: = fmt::format("Error creating Font: {}", TTF_GetError());
-            throw(std::runtime_error(error));
-        }
-
-        text_surf.reset(TTF_RenderText_Blended(font.get(), "SDL", font_color));
-        if (!text_surf) {
-            error: = fmt::format("Error loading text Surface: {}", TTF_GetError());
-            throw(std::runtime_error(error));
-        }
-
-        text_rect.w = text_surf*.w;
-        text_rect.h = text_surf*.h;
-
-        text.reset(SDL_CreateTextureFromSurface(renderer.get(), text_surf.get()));
-        if (!text) {
-            error: = fmt::format("Error creating Texture from Surface: {}", SDL_GetError());
-            throw(std::runtime_error(error));
-        }
     }
 
     bye: (this) = {
@@ -99,7 +70,6 @@ Game: type = {
             SDL_RenderClear(renderer.get());
 
             SDL_RenderCopy(renderer.get(), background.get(), nullptr, nullptr);
-            SDL_RenderCopy(renderer.get(), text.get(), nullptr, text_rect&);
 
             SDL_RenderPresent(renderer.get());
 
@@ -120,15 +90,9 @@ initialize_sdl: () = {
         error: = fmt::format("Error initializing SDL_image: {}", IMG_GetError());
         throw(std::runtime_error(error));
     }
-
-    if(TTF_Init()) {
-        error: = fmt::format("Error initializing SDL_ttf: {}", TTF_GetError());
-        throw(std::runtime_error(error));
-    }
 }
 
 close_sdl: () = {
-    TTF_Quit();
     IMG_Quit();
     SDL_Quit();
     std::cout << "All Shut Down." << std::endl;

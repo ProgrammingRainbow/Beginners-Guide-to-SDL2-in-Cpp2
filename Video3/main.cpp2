@@ -1,9 +1,8 @@
 #include "SDL2/SDL.h"
-#include "SDL2/SDL_image.h"
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Background";
+    title: const std::string = "Close Window";
     width: i32 = 800;
     height: i32 = 600;
 
@@ -11,11 +10,9 @@ Game: type = {
 
     window: std::unique_ptr<SDL_Window, decltype(SDL_DestroyWindow&)> = (nullptr, SDL_DestroyWindow);
     renderer: std::unique_ptr<SDL_Renderer, decltype(SDL_DestroyRenderer&)> = (nullptr, SDL_DestroyRenderer);
-    background: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
 
     operator=: (out this) = {
         initialize();
-        load_media();
     }
 
     initialize: (inout this) = {
@@ -31,14 +28,6 @@ Game: type = {
             -1, SDL_RENDERER_ACCELERATED));
         if (!renderer) {
             error: = fmt::format("Error creating Renderer: {}", SDL_GetError());
-            throw(std::runtime_error(error));
-        }
-    }
-
-    load_media: (inout this) = {
-        background.reset(IMG_LoadTexture(renderer.get(), "images/background.png"));
-        if (!background) {
-            error: = fmt::format("Error loading Texture: {}", IMG_GetError());
             throw(std::runtime_error(error));
         }
     }
@@ -62,8 +51,6 @@ Game: type = {
 
             SDL_RenderClear(renderer.get());
 
-            SDL_RenderCopy(renderer.get(), background.get(), nullptr, nullptr);
-
             SDL_RenderPresent(renderer.get());
 
             SDL_Delay(16);
@@ -72,21 +59,13 @@ Game: type = {
 }
 
 initialize_sdl: () = {
-    img_flags: i32 = IMG_INIT_PNG;
-
     if (SDL_Init(SDL_INIT_EVERYTHING)) {
         error: = fmt::format("Error initializing SDL: {}", SDL_GetError());
-        throw(std::runtime_error(error));
-    }
-
-    if ((IMG_Init(img_flags) & img_flags) != img_flags) {
-        error: = fmt::format("Error initializing SDL_image: {}", IMG_GetError());
         throw(std::runtime_error(error));
     }
 }
 
 close_sdl: () = {
-    IMG_Quit();
     SDL_Quit();
     std::cout << "All Shut Down." << std::endl;
 }

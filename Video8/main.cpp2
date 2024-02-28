@@ -1,11 +1,10 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 #include "SDL2/SDL_ttf.h"
-#include "SDL2/SDL_mixer.h"
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Sound Effects";
+    title: const std::string = "Player Sprite";
     width: i32 = 800;
     height: i32 = 600;
     font_size: i32 = 80;
@@ -31,8 +30,6 @@ Game: type = {
     text_surf: std::unique_ptr<SDL_Surface, decltype(SDL_FreeSurface&)> = (nullptr, SDL_FreeSurface);
     text: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
     sprite: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
-    cpp2_sound: std::unique_ptr<Mix_Chunk, decltype(Mix_FreeChunk&)> = (nullptr, Mix_FreeChunk);
-    sdl_sound: std::unique_ptr<Mix_Chunk, decltype(Mix_FreeChunk&)> = (nullptr, Mix_FreeChunk);
 
     operator=: (out this) = {
         initialize();
@@ -94,18 +91,6 @@ Game: type = {
             error: = fmt::format("Error querying Texture: {}", IMG_GetError());
             throw(std::runtime_error(error));
         }
-
-        cpp2_sound.reset(Mix_LoadWAV("sounds/Cpp2.ogg"));
-        if (!cpp2_sound) {
-            error: = fmt::format("Error loading Chunk: {}", Mix_GetError());
-            throw(std::runtime_error(error));
-        }
-
-        sdl_sound.reset(Mix_LoadWAV("sounds/SDL.ogg"));
-        if (!sdl_sound) {
-            error: = fmt::format("Error loading Chunk: {}", Mix_GetError());
-            throw(std::runtime_error(error));
-        }
     }
 
     bye: (this) = {
@@ -117,19 +102,15 @@ Game: type = {
         text_rect.y += text_yvel;
         if (text_rect.x + text_rect.w > width) {
             text_xvel = -text_vel;
-            Mix_PlayChannel(-1, sdl_sound.get(), 0);
         }
         if (text_rect.x < 0) {
             text_xvel = text_vel;
-            Mix_PlayChannel(-1, sdl_sound.get(), 0);
         }
         if (text_rect.y + text_rect.h > height) {
             text_yvel = -text_vel;
-            Mix_PlayChannel(-1, sdl_sound.get(), 0);
         }
         if (text_rect.y < 0) {
             text_yvel = text_vel;
-            Mix_PlayChannel(-1, sdl_sound.get(), 0);
         }
     }
 
@@ -161,7 +142,6 @@ Game: type = {
                     if (event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
                         SDL_SetRenderDrawColor(renderer.get(), rand_color(gen),
                             rand_color(gen), rand_color(gen), 255);
-                        Mix_PlayChannel(-1, cpp2_sound.get(), 0);
                     }
                 }
             }
@@ -184,7 +164,6 @@ Game: type = {
 
 initialize_sdl: () = {
     img_flags: i32 = IMG_INIT_PNG;
-    mix_flags: i32 = MIX_INIT_OGG;
 
     if (SDL_Init(SDL_INIT_EVERYTHING)) {
         error: = fmt::format("Error initializing SDL: {}", SDL_GetError());
@@ -200,25 +179,9 @@ initialize_sdl: () = {
         error: = fmt::format("Error initializing SDL_ttf: {}", TTF_GetError());
         throw(std::runtime_error(error));
     }
-
-    if ((Mix_Init(mix_flags) & mix_flags) != mix_flags) {
-        error: = fmt::format("Error initializing SDL_mixer: {}", Mix_GetError());
-        throw(std::runtime_error(error));
-    }
-
-    if (Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT,
-        MIX_DEFAULT_CHANNELS, 1024)) {
-        error: = fmt::format("Error Opening Audio: {}", Mix_GetError());
-        throw(std::runtime_error(error));
-    }
 }
 
 close_sdl: () = {
-    Mix_HaltChannel(-1);
-
-    Mix_CloseAudio();
-
-    Mix_Quit();
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();

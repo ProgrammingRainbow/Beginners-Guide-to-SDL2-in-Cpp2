@@ -5,7 +5,7 @@
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Music and Icon";
+    title: const std::string = "Sound Effects";
     width: i32 = 800;
     height: i32 = 600;
     font_size: i32 = 80;
@@ -33,9 +33,7 @@ Game: type = {
     sprite: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
     cpp2_sound: std::unique_ptr<Mix_Chunk, decltype(Mix_FreeChunk&)> = (nullptr, Mix_FreeChunk);
     sdl_sound: std::unique_ptr<Mix_Chunk, decltype(Mix_FreeChunk&)> = (nullptr, Mix_FreeChunk);
-    music: std::unique_ptr<Mix_Music, decltype(Mix_FreeMusic&)> = (nullptr, Mix_FreeMusic);
-    icon_surf: std::unique_ptr<SDL_Surface, decltype(SDL_FreeSurface&)> = (nullptr, SDL_FreeSurface);
-    
+
     operator=: (out this) = {
         initialize();
         load_media();
@@ -56,14 +54,6 @@ Game: type = {
             error: = fmt::format("Error creating Renderer: {}", SDL_GetError());
             throw(std::runtime_error(error));
         }
-
-        icon_surf.reset(IMG_Load("images/Cpp2-logo.png"));
-        if (!icon_surf) {
-            error: = fmt::format("Error loading Surface: {}", IMG_GetError());
-            throw(std::runtime_error(error));
-        }
-
-        SDL_SetWindowIcon(window.get(), icon_surf.get());
     }
 
     load_media: (inout this) = {
@@ -116,12 +106,6 @@ Game: type = {
             error: = fmt::format("Error loading Chunk: {}", Mix_GetError());
             throw(std::runtime_error(error));
         }
-
-        music.reset(Mix_LoadMUS("music/freesoftwaresong-8bit.ogg"));
-        if (!music) {
-            error: = fmt::format("Error loading Music: {}", Mix_GetError());
-            throw(std::runtime_error(error));
-        }
     }
 
     bye: (this) = {
@@ -165,11 +149,6 @@ Game: type = {
     }
 
     run: (inout this) = {
-        if (Mix_PlayMusic(music.get(), -1)) {
-            error: = fmt::format("Error playing Music: {}", Mix_GetError());
-            throw(std::runtime_error(error));
-        }
-
         while true {
             while SDL_PollEvent(event&) {
                 if (event.type == SDL_QUIT) {
@@ -183,13 +162,6 @@ Game: type = {
                         SDL_SetRenderDrawColor(renderer.get(), rand_color(gen),
                             rand_color(gen), rand_color(gen), 255);
                         Mix_PlayChannel(-1, cpp2_sound.get(), 0);
-                    }
-                    if (event.key.keysym.scancode == SDL_SCANCODE_M) {
-                        if (Mix_PausedMusic()) {
-                            Mix_ResumeMusic();
-                        } else {
-                            Mix_PauseMusic();
-                        }
                     }
                 }
             }
@@ -242,7 +214,6 @@ initialize_sdl: () = {
 }
 
 close_sdl: () = {
-    Mix_HaltMusic();
     Mix_HaltChannel(-1);
 
     Mix_CloseAudio();
