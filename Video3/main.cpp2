@@ -9,8 +9,8 @@ Game: type = {
 
     event: SDL_Event = 0;
 
-    window: std::shared_ptr<SDL_Window> = (nullptr, SDL_DestroyWindow);
-    renderer: std::shared_ptr<SDL_Renderer> = (nullptr, SDL_DestroyRenderer);
+    window: std::unique_ptr<SDL_Window, decltype(SDL_DestroyWindow&)> = (nullptr, SDL_DestroyWindow);
+    renderer: std::unique_ptr<SDL_Renderer, decltype(SDL_DestroyRenderer&)> = (nullptr, SDL_DestroyRenderer);
     background: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
 
     operator=: (out this) = {
@@ -19,16 +19,16 @@ Game: type = {
     }
 
     initialize: (inout this) = {
-        window = (SDL_CreateWindow(title.c_str(),
+        window.reset(SDL_CreateWindow(title.c_str(),
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
-            SDL_WINDOW_SHOWN), SDL_DestroyWindow);
+            SDL_WINDOW_SHOWN));
         if (!window) {
             error: = fmt::format("Error creating Window: {}", SDL_GetError());
             throw(std::runtime_error(error));
         }
 
-        renderer = (SDL_CreateRenderer(window.get(),
-            -1, SDL_RENDERER_ACCELERATED), SDL_DestroyRenderer);
+        renderer.reset(SDL_CreateRenderer(window.get(),
+            -1, SDL_RENDERER_ACCELERATED));
         if (!renderer) {
             error: = fmt::format("Error creating Renderer: {}", SDL_GetError());
             throw(std::runtime_error(error));
@@ -36,7 +36,7 @@ Game: type = {
     }
 
     load_media: (inout this) = {
-        background = (IMG_LoadTexture(renderer.get(), "images/background.png"), SDL_DestroyTexture);
+        background.reset(IMG_LoadTexture(renderer.get(), "images/background.png"));
         if (!background) {
             error: = fmt::format("Error loading Texture: {}", IMG_GetError());
             throw(std::runtime_error(error));

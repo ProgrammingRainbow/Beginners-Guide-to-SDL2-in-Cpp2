@@ -5,7 +5,7 @@
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Music";
+    title: const std::string = "Music and Icon";
     width: i32 = 800;
     height: i32 = 600;
     font_size: i32 = 80;
@@ -24,8 +24,8 @@ Game: type = {
     gen: std::mt19937 = std::random_device()();
     rand_color: std::uniform_int_distribution<Uint8> = (0, 255);
 
-    window: std::shared_ptr<SDL_Window> = (nullptr, SDL_DestroyWindow);
-    renderer: std::shared_ptr<SDL_Renderer> = (nullptr, SDL_DestroyRenderer);
+    window: std::unique_ptr<SDL_Window, decltype(SDL_DestroyWindow&)> = (nullptr, SDL_DestroyWindow);
+    renderer: std::unique_ptr<SDL_Renderer, decltype(SDL_DestroyRenderer&)> = (nullptr, SDL_DestroyRenderer);
     background: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
     font: std::unique_ptr<TTF_Font, decltype(TTF_CloseFont&)> = (nullptr, TTF_CloseFont);
     text_surf: std::unique_ptr<SDL_Surface, decltype(SDL_FreeSurface&)> = (nullptr, SDL_FreeSurface);
@@ -34,6 +34,7 @@ Game: type = {
     cpp2_sound: std::unique_ptr<Mix_Chunk, decltype(Mix_FreeChunk&)> = (nullptr, Mix_FreeChunk);
     sdl_sound: std::unique_ptr<Mix_Chunk, decltype(Mix_FreeChunk&)> = (nullptr, Mix_FreeChunk);
     music: std::unique_ptr<Mix_Music, decltype(Mix_FreeMusic&)> = (nullptr, Mix_FreeMusic);
+    icon_surf: std::unique_ptr<SDL_Surface, decltype(SDL_FreeSurface&)> = (nullptr, SDL_FreeSurface);
     
     operator=: (out this) = {
         initialize();
@@ -41,36 +42,44 @@ Game: type = {
     }
 
     initialize: (inout this) = {
-        window = (SDL_CreateWindow(title.c_str(),
+        window.reset(SDL_CreateWindow(title.c_str(),
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
-            SDL_WINDOW_SHOWN), SDL_DestroyWindow);
+            SDL_WINDOW_SHOWN));
         if (!window) {
             error: = fmt::format("Error creating Window: {}", SDL_GetError());
             throw(std::runtime_error(error));
         }
 
-        renderer = (SDL_CreateRenderer(window.get(),
-            -1, SDL_RENDERER_ACCELERATED), SDL_DestroyRenderer);
+        renderer.reset(SDL_CreateRenderer(window.get(),
+            -1, SDL_RENDERER_ACCELERATED));
         if (!renderer) {
             error: = fmt::format("Error creating Renderer: {}", SDL_GetError());
             throw(std::runtime_error(error));
         }
+
+        icon_surf.reset(IMG_Load("images/Cpp2-logo.png"));
+        if (!icon_surf) {
+            error: = fmt::format("Error loading Surface: {}", IMG_GetError());
+            throw(std::runtime_error(error));
+        }
+
+        SDL_SetWindowIcon(window.get(), icon_surf.get());
     }
 
     load_media: (inout this) = {
-        background = (IMG_LoadTexture(renderer.get(), "images/background.png"), SDL_DestroyTexture);
+        background.reset(IMG_LoadTexture(renderer.get(), "images/background.png"));
         if (!background) {
             error: = fmt::format("Error loading Texture: {}", IMG_GetError());
             throw(std::runtime_error(error));
         }
 
-        font = (TTF_OpenFont("fonts/freesansbold.ttf", font_size), TTF_CloseFont);
+        font.reset(TTF_OpenFont("fonts/freesansbold.ttf", font_size));
         if (!font) {
             error: = fmt::format("Error creating Font: {}", TTF_GetError());
             throw(std::runtime_error(error));
         }
 
-        text_surf = (TTF_RenderText_Blended(font.get(), "SDL", font_color), SDL_FreeSurface);
+        text_surf.reset(TTF_RenderText_Blended(font.get(), "SDL", font_color));
         if (!text_surf) {
             error: = fmt::format("Error loading text Surface: {}", TTF_GetError());
             throw(std::runtime_error(error));
@@ -79,13 +88,13 @@ Game: type = {
         text_rect.w = text_surf*.w;
         text_rect.h = text_surf*.h;
 
-        text = (SDL_CreateTextureFromSurface(renderer.get(), text_surf.get()), SDL_DestroyTexture);
+        text.reset(SDL_CreateTextureFromSurface(renderer.get(), text_surf.get()));
         if (!text) {
             error: = fmt::format("Error creating Texture from Surface: {}", SDL_GetError());
             throw(std::runtime_error(error));
         }
 
-        sprite = (IMG_LoadTexture(renderer.get(), "images/Cpp2-logo.png"), SDL_DestroyTexture);
+        sprite.reset(IMG_LoadTexture(renderer.get(), "images/Cpp2-logo.png"));
         if (!sprite) {
             error: = fmt::format("Error loading Texture: {}", IMG_GetError());
             throw(std::runtime_error(error));
@@ -96,19 +105,19 @@ Game: type = {
             throw(std::runtime_error(error));
         }
 
-        cpp2_sound = (Mix_LoadWAV("sounds/Cpp2.ogg"), Mix_FreeChunk);
+        cpp2_sound.reset(Mix_LoadWAV("sounds/Cpp2.ogg"));
         if (!cpp2_sound) {
             error: = fmt::format("Error loading Chunk: {}", Mix_GetError());
             throw(std::runtime_error(error));
         }
 
-        sdl_sound = (Mix_LoadWAV("sounds/SDL.ogg"), Mix_FreeChunk);
+        sdl_sound.reset(Mix_LoadWAV("sounds/SDL.ogg"));
         if (!sdl_sound) {
             error: = fmt::format("Error loading Chunk: {}", Mix_GetError());
             throw(std::runtime_error(error));
         }
 
-        music = (Mix_LoadMUS("music/freesoftwaresong-8bit.ogg"), Mix_FreeMusic);
+        music.reset(Mix_LoadMUS("music/freesoftwaresong-8bit.ogg"));
         if (!music) {
             error: = fmt::format("Error loading Music: {}", Mix_GetError());
             throw(std::runtime_error(error));
@@ -117,6 +126,27 @@ Game: type = {
 
     bye: (this) = {
         std::cout << "Good Bye from Game." << std::endl;
+    }
+
+    text_update: (inout this) = {
+        text_rect.x += text_xvel;
+        text_rect.y += text_yvel;
+        if (text_rect.x + text_rect.w > width) {
+            text_xvel = -text_vel;
+            Mix_PlayChannel(-1, sdl_sound.get(), 0);
+        }
+        if (text_rect.x < 0) {
+            text_xvel = text_vel;
+            Mix_PlayChannel(-1, sdl_sound.get(), 0);
+        }
+        if (text_rect.y + text_rect.h > height) {
+            text_yvel = -text_vel;
+            Mix_PlayChannel(-1, sdl_sound.get(), 0);
+        }
+        if (text_rect.y < 0) {
+            text_yvel = text_vel;
+            Mix_PlayChannel(-1, sdl_sound.get(), 0);
+        }
     }
 
     sprite_update: (inout this) = {
@@ -131,27 +161,6 @@ Game: type = {
         }
         if (keystate[SDL_SCANCODE_DOWN] || keystate[SDL_SCANCODE_S]) {
             sprite_rect.y += sprite_vel;
-        }
-    }
-
-    text_update: (inout this) = {
-        text_rect.x += text_xvel;
-        text_rect.y += text_yvel;
-        if (text_rect.x + text_rect.w > width) {
-            text_xvel = -3;
-            Mix_PlayChannel(-1, sdl_sound.get(), 0);
-        }
-        if (text_rect.x < 0) {
-            text_xvel = 3;
-            Mix_PlayChannel(-1, sdl_sound.get(), 0);
-        }
-        if (text_rect.y + text_rect.h > height) {
-            text_yvel = -3;
-            Mix_PlayChannel(-1, sdl_sound.get(), 0);
-        }
-        if (text_rect.y < 0) {
-            text_yvel = 3;
-            Mix_PlayChannel(-1, sdl_sound.get(), 0);
         }
     }
 
