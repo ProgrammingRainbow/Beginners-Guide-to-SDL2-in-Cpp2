@@ -19,19 +19,17 @@ Game: type = {
     }
 
     initialize: (inout this) = {
-        window.reset(SDL_CreateWindow(title.c_str(),
-            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
-            SDL_WINDOW_SHOWN));
+        window.reset(SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED,
+            SDL_WINDOWPOS_CENTERED, width, height, 0));
         if (!window) {
             error: = fmt::format("Error creating Window: {}", SDL_GetError());
-            throw(std::runtime_error(error));
+            throw(std::runtime_error(error));  
         }
 
-        renderer.reset(SDL_CreateRenderer(window.get(),
-            -1, SDL_RENDERER_ACCELERATED));
+        renderer.reset(SDL_CreateRenderer(window.get(), -1, SDL_RENDERER_ACCELERATED));
         if (!renderer) {
             error: = fmt::format("Error creating Renderer: {}", SDL_GetError());
-            throw(std::runtime_error(error));
+            throw(std::runtime_error(error));  
         }
     }
 
@@ -39,27 +37,22 @@ Game: type = {
         background.reset(IMG_LoadTexture(renderer.get(), "images/background.png"));
         if (!background) {
             error: = fmt::format("Error loading Texture: {}", IMG_GetError());
-            throw(std::runtime_error(error));
+            throw(std::runtime_error(error));  
         }
-    }
-
-    bye: (this) = {
-        std::cout << "Good Bye from Game." << std::endl;
     }
 
     run: (inout this) = {
         while true {
             while SDL_PollEvent(event&) {
-                if (event.type == SDL_QUIT) {
+                if(event.type == SDL_QUIT) {
                     return;
                 }
                 if (event.type == SDL_KEYDOWN) {
                     if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
                         return;
-                    }
+                    }  
                 }
             }
-
             SDL_RenderClear(renderer.get());
 
             SDL_RenderCopy(renderer.get(), background.get(), nullptr, nullptr);
@@ -69,12 +62,17 @@ Game: type = {
             SDL_Delay(16);
         }
     }
+
+    bye: (this) = {
+        std::cout << "Good Bye from Game." << std::endl;
+    }
 }
 
-initialize_sdl: () = {
+intialize_sdl: () = {
+    sdl_flags: i32 = SDL_INIT_EVERYTHING;
     img_flags: i32 = IMG_INIT_PNG;
 
-    if (SDL_Init(SDL_INIT_EVERYTHING)) {
+    if (SDL_Init(sdl_flags)) {
         error: = fmt::format("Error initializing SDL: {}", SDL_GetError());
         throw(std::runtime_error(error));
     }
@@ -88,11 +86,10 @@ initialize_sdl: () = {
 close_sdl: () = {
     IMG_Quit();
     SDL_Quit();
-    std::cout << "All Shut Down." << std::endl;
 }
 
 main: () = {
-    initialize_sdl();
+    intialize_sdl();
     {
         game: Game = ();
         game.run();
