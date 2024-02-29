@@ -1,6 +1,7 @@
 # Beginners Guide to SDL2 in Cpp2
 
-An in-depth guide to getting started with SDL2 in Cpp2 C++ Syntax 2
+An in-depth guide to getting started with SDL2 in Cpp2 C++ Syntax 2 \
+https://www.youtube.com/playlist?list=PLO02jwa2ZaiBHV1Ez7T8mxHnQ_vAdHD48
 
 This is SDL2 with Herb Sutters C++ Syntax 2 or Cpp2 using cppfront cross compiler.
 
