@@ -4,18 +4,21 @@
 #include "fmt/format.h"
 
 Game: type = {
-    title: const std::string = "Moving Text";
+    title: const std::string = "Player Sprite";
     width: i32 = 800;
     height: i32 = 600;
     font_size: i32 = 80;
     font_color: SDL_Color = (255, 255, 255, 255);
-
+    text_str: const std::string = "SDL";
     text_rect: SDL_Rect = (0, 0, 0, 0);
     text_vel: i32 = 3;
     text_xvel: i32 = text_vel;
     text_yvel: i32 = text_vel;
+    sprite_rect: SDL_Rect = (0, 0, 0, 0);
+    sprite_vel: i32 = 5;
 
     event: SDL_Event = 0;
+    keystate: * const Uint8 = SDL_GetKeyboardState(nullptr);
 
     gen: std::mt19937 = std::random_device()();
     rand_color: std::uniform_int_distribution<Uint8> = (0, 255);
@@ -23,9 +26,11 @@ Game: type = {
     window: std::unique_ptr<SDL_Window, decltype(SDL_DestroyWindow&)> = (nullptr, SDL_DestroyWindow);
     renderer: std::unique_ptr<SDL_Renderer, decltype(SDL_DestroyRenderer&)> = (nullptr, SDL_DestroyRenderer);
     background: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
+    icon_surf: std::unique_ptr<SDL_Surface, decltype(SDL_FreeSurface&)> = (nullptr, SDL_FreeSurface);
     font: std::unique_ptr<TTF_Font, decltype(TTF_CloseFont&)> = (nullptr, TTF_CloseFont);
     text_surf: std::unique_ptr<SDL_Surface, decltype(SDL_FreeSurface&)> = (nullptr, SDL_FreeSurface);
     text: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
+    sprite: std::unique_ptr<SDL_Texture, decltype(SDL_DestroyTexture&)> = (nullptr, SDL_DestroyTexture);
 
     operator=: (out this) = {
         initialize();
@@ -33,39 +38,45 @@ Game: type = {
     }
 
     initialize: (inout this) = {
-        window.reset(SDL_CreateWindow(title.c_str(),
-            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height,
-            SDL_WINDOW_SHOWN));
+        window.reset(SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED,
+            SDL_WINDOWPOS_CENTERED, width, height, 0));
         if (!window) {
             error: = fmt::format("Error creating Window: {}", SDL_GetError());
-            throw(std::runtime_error(error));
+            throw(std::runtime_error(error));  
         }
 
-        renderer.reset(SDL_CreateRenderer(window.get(),
-            -1, SDL_RENDERER_ACCELERATED));
+        renderer.reset(SDL_CreateRenderer(window.get(), -1, SDL_RENDERER_ACCELERATED));
         if (!renderer) {
             error: = fmt::format("Error creating Renderer: {}", SDL_GetError());
-            throw(std::runtime_error(error));
+            throw(std::runtime_error(error));  
         }
+
+        icon_surf.reset(IMG_Load("images/Cpp2-logo.png"));
+        if (!icon_surf) {
+            error: = fmt::format("Error loading Surface: {}", IMG_GetError());
+            throw(std::runtime_error(error));  
+        }
+
+        SDL_SetWindowIcon(window.get(), icon_surf.get());
     }
 
     load_media: (inout this) = {
         background.reset(IMG_LoadTexture(renderer.get(), "images/background.png"));
         if (!background) {
             error: = fmt::format("Error loading Texture: {}", IMG_GetError());
-            throw(std::runtime_error(error));
+            throw(std::runtime_error(error));  
         }
 
         font.reset(TTF_OpenFont("fonts/freesansbold.ttf", font_size));
         if (!font) {
-            error: = fmt::format("Error creating Font: {}", TTF_GetError());
-            throw(std::runtime_error(error));
+            error: = fmt::format("Error Opening Font: {}", TTF_GetError());
+            throw(std::runtime_error(error));  
         }
 
-        text_surf.reset(TTF_RenderText_Blended(font.get(), "SDL", font_color));
+        text_surf.reset(TTF_RenderText_Blended(font.get(), text_str.c_str(), font_color));
         if (!text_surf) {
-            error: = fmt::format("Error loading text Surface: {}", TTF_GetError());
-            throw(std::runtime_error(error));
+            error: = fmt::format("Error creating text Surface: {}", TTF_GetError());
+            throw(std::runtime_error(error));  
         }
 
         text_rect.w = text_surf*.w;
@@ -74,17 +85,25 @@ Game: type = {
         text.reset(SDL_CreateTextureFromSurface(renderer.get(), text_surf.get()));
         if (!text) {
             error: = fmt::format("Error creating Texture from Surface: {}", SDL_GetError());
-            throw(std::runtime_error(error));
+            throw(std::runtime_error(error));  
         }
-    }
 
-    bye: (this) = {
-        std::cout << "Good Bye from Game." << std::endl;
+        sprite.reset(IMG_LoadTexture(renderer.get(), "images/Cpp2-logo.png"));
+        if (!sprite) {
+            error: = fmt::format("Error loading Texture: {}", IMG_GetError());
+            throw(std::runtime_error(error));  
+        }
+
+        if (SDL_QueryTexture(sprite.get(), nullptr, nullptr, sprite_rect.w&, sprite_rect.h&)) {
+            error: = fmt::format("Error querying Texture: {}", SDL_GetError());
+            throw(std::runtime_error(error));     
+        }
     }
 
     text_update: (inout this) = {
         text_rect.x += text_xvel;
         text_rect.y += text_yvel;
+
         if (text_rect.x + text_rect.w > width) {
             text_xvel = -text_vel;
         }
@@ -97,12 +116,28 @@ Game: type = {
         if (text_rect.y < 0) {
             text_yvel = text_vel;
         }
+
+    }
+
+    sprite_update: (inout this) = {
+        if (keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A]) {
+            sprite_rect.x -= sprite_vel;
+        }
+        if (keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D]) {
+            sprite_rect.x += sprite_vel;
+        }
+        if (keystate[SDL_SCANCODE_UP] || keystate[SDL_SCANCODE_W]) {
+            sprite_rect.y -= sprite_vel;
+        }
+        if (keystate[SDL_SCANCODE_DOWN] || keystate[SDL_SCANCODE_S]) {
+            sprite_rect.y += sprite_vel;
+        }
     }
 
     run: (inout this) = {
         while true {
             while SDL_PollEvent(event&) {
-                if (event.type == SDL_QUIT) {
+                if(event.type == SDL_QUIT) {
                     return;
                 }
                 if (event.type == SDL_KEYDOWN) {
@@ -112,28 +147,35 @@ Game: type = {
                     if (event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
                         SDL_SetRenderDrawColor(renderer.get(), rand_color(gen),
                             rand_color(gen), rand_color(gen), 255);
-                    }
+                    }    
                 }
             }
 
             text_update();
+            sprite_update();
 
             SDL_RenderClear(renderer.get());
 
             SDL_RenderCopy(renderer.get(), background.get(), nullptr, nullptr);
             SDL_RenderCopy(renderer.get(), text.get(), nullptr, text_rect&);
+            SDL_RenderCopy(renderer.get(), sprite.get(), nullptr, sprite_rect&);
 
             SDL_RenderPresent(renderer.get());
 
             SDL_Delay(16);
         }
     }
+
+    bye: (this) = {
+        std::cout << "Good Bye from Game." << std::endl;
+    }
 }
 
-initialize_sdl: () = {
+intialize_sdl: () = {
+    sdl_flags: i32 = SDL_INIT_EVERYTHING;
     img_flags: i32 = IMG_INIT_PNG;
 
-    if (SDL_Init(SDL_INIT_EVERYTHING)) {
+    if (SDL_Init(sdl_flags)) {
         error: = fmt::format("Error initializing SDL: {}", SDL_GetError());
         throw(std::runtime_error(error));
     }
@@ -143,7 +185,7 @@ initialize_sdl: () = {
         throw(std::runtime_error(error));
     }
 
-    if(TTF_Init()) {
+    if (TTF_Init()) {
         error: = fmt::format("Error initializing SDL_ttf: {}", TTF_GetError());
         throw(std::runtime_error(error));
     }
@@ -153,11 +195,10 @@ close_sdl: () = {
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();
-    std::cout << "All Shut Down." << std::endl;
 }
 
 main: () = {
-    initialize_sdl();
+    intialize_sdl();
     {
         game: Game = ();
         game.run();
